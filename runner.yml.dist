@@ -25,7 +25,6 @@ drupal:
       - ./vendor/bin/drush config-set system.theme admin seven -y
       - ./vendor/bin/drush config-set node.settings use_admin_theme 1 -y
       - ./vendor/bin/drush --root=$(pwd)/build en views_field_formatter -y
-      - ./vendor/bin/drupal site:mode dev
       - ./vendor/bin/drush --root=$(pwd)/build cr
   drush:
     options:
