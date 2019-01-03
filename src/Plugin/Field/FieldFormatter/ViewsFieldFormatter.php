@@ -127,9 +127,10 @@ class ViewsFieldFormatter extends FormatterBase {
       '#suffix' => '</div>',
       '#type' => 'table',
       '#header' => [
-        $this->t('View Arguments'),
-        $this->t('Weight'),
         '',
+        $this->t('Weight'),
+        $this->t('Argument index'),
+        $this->t('String or token'),
       ],
       '#tabledrag' => [
         [
@@ -139,8 +140,9 @@ class ViewsFieldFormatter extends FormatterBase {
         ],
       ],
       '#caption' => $this->t(
-        'Select the arguments to send to the views, you can reorder them.
-         These arguments can be used as contextual filters in the selected View.'
+        'Select,add and reorder the arguments that will be used by the selected
+         view as contextual filters.
+         To remove some rows, uncheck the checkbox and save.'
       ),
     ];
 
@@ -148,7 +150,7 @@ class ViewsFieldFormatter extends FormatterBase {
       $element['arguments'][] = [
         'checked' => [
           '#type' => 'checkbox',
-          '#title' => 'Token',
+          '#title' => '',
           '#default_value' => $this->getSettings()['arguments'][$i]['checked'],
         ],
         'weight' => [
@@ -157,10 +159,13 @@ class ViewsFieldFormatter extends FormatterBase {
           '#title_display' => 'invisible',
           '#attributes' => ['class' => ['arguments-order-weight']],
         ],
+        'argument_index' => [
+          '#markup' => $i,
+        ],
         'token' => [
           '#type' => 'textfield',
-          '#title' => 'Token',
-          '#description' => $this->t('String or token'),
+          '#title' => 'Argument',
+          '#description' => $this->t('Use a static string or a Drupal token.'),
           '#default_value' => $this->getSettings()['arguments'][$i]['token'],
         ],
         '#attributes' => ['class' => ['draggable']],
@@ -170,7 +175,7 @@ class ViewsFieldFormatter extends FormatterBase {
     $element['addRow'] = [
       '#type' => 'button',
       '#button_type' => 'secondary',
-      '#value' => t('Add a new table row'),
+      '#value' => t('Add a new argument'),
       '#ajax' => [
         'callback' => [$this, 'ajaxAddRow'],
         'event' => 'click',
@@ -364,7 +369,7 @@ class ViewsFieldFormatter extends FormatterBase {
    * @return array
    *   The array.
    */
-  private function getArguments(FieldItemListInterface $items, $item, $delta) {
+  private function getArguments(FieldItemListInterface $items) {
     /** @var \Drupal\Core\Entity\EntityInterface $entity */
     $entity = $items->getParent()->getValue();
 
@@ -414,26 +419,23 @@ class ViewsFieldFormatter extends FormatterBase {
     }
 
     $cardinality = $items->getFieldDefinition()->getFieldStorageDefinition()->getCardinality();
-    $arguments = $this->getArguments($items, $items[0], 0);
+    $arguments = $this->getArguments($items);
 
     // If empty views are hidden, execute view to count result.
     if (!empty($settings['hide_empty'])) {
       $view = Views::getView($view_id);
+
       if (!$view || !$view->access($view_display)) {
         return $elements;
       }
 
-      // We try to reproduce the arguments which will be used below. We cannot
-      // just use $this->getArguments($items, $items[0], 0) as this might return
-      // items, which for example no longer exist, still you want to show the
-      // view when there are more possible entries.
+      $view->setArguments($arguments);
       if ((1 !== $cardinality) && (TRUE === (bool) $settings['multiple'])) {
         if (!empty($settings['implode_character'])) {
-          $arguments = $this->getArguments($items, NULL, 0);
+          $view->setArguments((array) implode($settings['implode_character'], $arguments));
         }
       }
 
-      $view->setArguments($arguments);
       $view->setDisplay($view_display);
       $view->preExecute();
       $view->execute();
@@ -456,15 +458,22 @@ class ViewsFieldFormatter extends FormatterBase {
     ];
 
     if ((1 !== $cardinality) && (TRUE === (bool) $settings['multiple'])) {
-      if (empty($settings['implode_character'])) {
-        foreach ($items as $delta => $item) {
-          $elements[$delta] = [
+      if (!empty($settings['implode_character'])) {
+        $arguments = (array) implode($settings['implode_character'], $arguments);
+      }
+
+      foreach ($items as $delta => $item) {
+        $elements[$delta] = [
+          '#cache' => [
+            'max-age' => 0,
+          ],
+          [
             '#type' => 'view',
             '#name' => $view_id,
             '#display_id' => $view_display,
-            '#arguments' => $this->getArguments($items, $item, $delta),
-          ];
-        }
+            '#arguments' => $arguments,
+          ]
+        ];
       }
     }
 
