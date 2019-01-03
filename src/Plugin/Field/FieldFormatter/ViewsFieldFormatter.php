@@ -7,6 +7,7 @@ namespace Drupal\views_field_formatter\Plugin\Field\FieldFormatter;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\FormatterBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\views\Entity\View;
 use Drupal\views\Views;
 
@@ -103,9 +104,9 @@ class ViewsFieldFormatter extends FormatterBase {
       $form_state->set('arguments', \count($default_arguments));
     }
 
-    $userInput = $form_state->getUserInput();
-
-    if (isset($userInput['_triggering_element_value']) && 'Add a new table row' === $userInput['_triggering_element_value']) {
+    // Ensure we clicked the Ajax button.
+    $trigger = $form_state->getTriggeringElement();
+    if (\is_array($trigger['#array_parents']) && 'addRow' === \end($trigger['#array_parents'])) {
       $form_state->set('arguments', $form_state->get('arguments') + 1);
     }
 
@@ -177,6 +178,70 @@ class ViewsFieldFormatter extends FormatterBase {
       ],
     ];
 
+    $types = ['site', 'user', 'entity', 'field', 'date'];
+
+    switch ($this->fieldDefinition->getTargetEntityTypeId()) {
+      case 'taxonomy_term':
+        $types[] = 'term';
+        $types[] = 'vocabulary';
+
+        break;
+
+      default:
+        $types[] = $this->fieldDefinition->getTargetEntityTypeId();
+
+        break;
+    }
+
+    $token = \Drupal::token();
+    $info = $token->getInfo();
+
+    $available_token = \array_intersect_key(
+      $info['tokens'],
+      \array_flip($types)
+    );
+
+    $token_items = [];
+    foreach ($available_token as $type => $tokens) {
+      $item = [
+        '#markup' => $this->t('@type tokens', ['@type' => \ucfirst($type)]),
+        'children' => [],
+      ];
+
+      foreach ($tokens as $name => $info) {
+        $info += [
+          'description' => $this->t('No description available'),
+        ];
+
+        $item['children'][$name] = \sprintf('[%s:%s] - %s: %s', $type, $name, $info['name'], $info['description']);
+      }
+
+      $token_items[$type] = $item;
+    }
+
+    $element['token_tree_link'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Available token replacements'),
+      'description' => [
+        '#markup' => $this->t('To have more tokens, please install the <a href="@token">Token contrib module</a>.', ['@token' => 'https://drupal.org/project/token']),
+      ],
+    ];
+
+    $element['token_tree_link']['list'] = [
+      '#theme' => 'item_list',
+      '#items' => $token_items,
+      '#attributes' => [
+        'class' => ['global-tokens'],
+      ],
+    ];
+
+    if (\Drupal::moduleHandler()->moduleExists('token')) {
+      $element['token_tree_link'] = [
+        '#theme' => 'token_tree_link',
+        '#token_types' => $types,
+      ];
+    }
+
     $element['hide_empty'] = [
       '#title' => $this->t('Hide empty views'),
       '#description' => $this->t('Do not display the field if the view is empty.'),
@@ -209,45 +274,6 @@ class ViewsFieldFormatter extends FormatterBase {
           '][settings_edit_form][settings][multiple]"]' =>
             ['checked' => TRUE],
         ],
-      ],
-    ];
-
-    $token_items = [];
-
-    $token = \Drupal::token();
-
-    $info = $token->getInfo();
-
-    $types = ['site', 'user', 'node', 'entity', 'field'];
-
-    $available_token = \array_intersect_key(
-      $info['tokens'],
-      \array_flip($types)
-    );
-
-    foreach ($available_token as $type => $tokens) {
-      $item = [
-        '#markup' => \ucfirst($type),
-        'children' => [],
-      ];
-      foreach ($tokens as $name => $info) {
-        $info += ['description' => $this->t('No description available')];
-        $item['children'][$name] = "[$type:$name]" . ' - ' . $info['name'] . ': ' . $info['description'];
-      }
-
-      $token_items[$type] = $item;
-    }
-
-    $element['global_tokens'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Available token replacements'),
-    ];
-
-    $element['global_tokens']['list'] = [
-      '#theme' => 'item_list',
-      '#items' => $token_items,
-      '#attributes' => [
-        'class' => ['global-tokens'],
       ],
     ];
 
@@ -339,40 +365,38 @@ class ViewsFieldFormatter extends FormatterBase {
    *   The array.
    */
   private function getArguments(FieldItemListInterface $items, $item, $delta) {
-    $settings = $this->getSettings();
-
-    $user_arguments =
-      \array_filter(
-        $settings['arguments'],
-        function ($argument) {
-          return $argument['checked'];
-        }
-      );
-
-    $token = \Drupal::token();
-
     /** @var \Drupal\Core\Entity\EntityInterface $entity */
     $entity = $items->getParent()->getValue();
 
-    $arguments = [];
-    foreach ($user_arguments as $argument) {
-      $arguments[] = (array) $token->replace(
-        $argument['token'],
-        [
-          $entity->getEntityTypeId() => $entity,
-          'field' => [
-            'definition' => $this->fieldDefinition,
-            'items' => $items,
-            'configuration' => $this->getSettings(),
-            'delta' => $delta,
-            'item' => $item,
-          ],
-          'user' => \Drupal::currentUser(),
-        ]
-      );
+    switch ($this->fieldDefinition->getTargetEntityTypeId()) {
+      case 'taxonomy_term':
+        $replacements['term'] = $entity;
+        $replacements['vocabulary'] = Vocabulary::load($entity->getVocabularyId());
+
+        break;
+
+      default:
+        $replacements[$entity->getEntityTypeId()] = $entity;
+
+        break;
     }
 
-    return \array_values($arguments);
+    $token = \Drupal::token();
+
+    return \array_map(
+      function ($argument) use ($token, $replacements) {
+        return $token->replace(
+          $argument['token'],
+          $replacements
+        );
+      },
+      \array_filter(
+        $this->getSetting('arguments'),
+        function ($argument) {
+          return $argument['checked'];
+        }
+      )
+    );
   }
 
   /**
@@ -381,7 +405,6 @@ class ViewsFieldFormatter extends FormatterBase {
   public function viewElements(FieldItemListInterface $items, $langcode) {
     $elements = [];
     $settings = $this->getSettings();
-    $cardinality = $items->getFieldDefinition()->getFieldStorageDefinition()->getCardinality();
 
     if (isset($settings['view']) && !empty($settings['view']) && FALSE !== \strpos($settings['view'], '::')) {
       list($view_id, $view_display) = \explode('::', $settings['view'], 2);
@@ -390,6 +413,7 @@ class ViewsFieldFormatter extends FormatterBase {
       return $elements;
     }
 
+    $cardinality = $items->getFieldDefinition()->getFieldStorageDefinition()->getCardinality();
     $arguments = $this->getArguments($items, $items[0], 0);
 
     // If empty views are hidden, execute view to count result.
@@ -403,7 +427,7 @@ class ViewsFieldFormatter extends FormatterBase {
       // just use $this->getArguments($items, $items[0], 0) as this might return
       // items, which for example no longer exist, still you want to show the
       // view when there are more possible entries.
-      if ((TRUE === (bool) $settings['multiple']) && (1 !== $cardinality)) {
+      if ((1 !== $cardinality) && (TRUE === (bool) $settings['multiple'])) {
         if (!empty($settings['implode_character'])) {
           $arguments = $this->getArguments($items, NULL, 0);
         }

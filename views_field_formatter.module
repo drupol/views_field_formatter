@@ -7,7 +7,6 @@
 
 declare(strict_types = 1);
 
-use Drupal\Core\Render\BubbleableMetadata;
 use Drupal\Core\Routing\RouteMatchInterface;
 
 /**
@@ -27,92 +26,4 @@ function views_field_formatter_help($route_name, RouteMatchInterface $route_matc
     default:
       return '';
   }
-}
-
-/**
- * Implements hook_token_info().
- */
-function views_field_formatter_token_info() {
-  return [
-    'tokens' => [
-      'field' => [
-        'value' => [
-          'name' => t("Field's value"),
-          'description' => t("Field's value"),
-        ],
-        'delta' => [
-          'name' => t("Field's delta"),
-          'description' => t("Field's delta"),
-        ],
-        'label' => [
-          'name' => t("Field's label"),
-          'description' => t("Field's label"),
-        ],
-      ],
-    ],
-  ];
-}
-
-/**
- * Implements hook_tokens().
- */
-function views_field_formatter_tokens($type, $tokens, array $data, array $options, BubbleableMetadata $bubbleable_metadata) {
-  $replacements = [];
-
-  if ('field' === $type) {
-    foreach ($tokens as $name => $original) {
-      switch ($name) {
-        case 'label':
-          /** @var \Drupal\field\FieldConfigInterface $definition */
-          $definition = $data['field']['definition'];
-
-          $replacements[$original] = $definition->label();
-          break;
-        case 'delta':
-          $replacements[$original] = $data['field']['delta'] ?? NULL;
-
-          break;
-
-        case 'value':
-          $item = $data['field']['item'];
-          $items = $data['field']['items'];
-          $definition = $data['field']['definition'];
-          $configuration = $data['field']['configuration'];
-
-          $columns = \array_keys(
-            $items->getFieldDefinition()->getFieldStorageDefinition()->getSchema()['columns']
-          );
-          $column = \array_shift($columns);
-          $cardinality = $items->getFieldDefinition()->getFieldStorageDefinition()->getCardinality();
-
-          /** @var FieldItemInterface $item */
-          if ($item) {
-            $arguments = !empty($column) && isset($item->getValue()[$column]) ?
-              $item->getValue()[$column] : NULL;
-          }
-
-          if ((1 !== $cardinality) && (TRUE === (bool) $configuration['multiple'])) {
-            if (!empty($configuration['implode_character'])) {
-              $values = [];
-
-              /** @var FieldItemInterface $item */
-              foreach ($items as $item) {
-                $values[] = !empty($column) && isset($item->getValue()[$column]) ?
-                  $item->getValue()[$column] : NULL;
-              }
-
-              if (!empty($values)) {
-                $arguments = \implode($configuration['implode_character'], \array_filter($values));
-              }
-            }
-          }
-
-          $replacements[$original] = $arguments;
-
-          break;
-      }
-    }
-  }
-
-  return $replacements;
 }
