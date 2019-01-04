@@ -9,6 +9,7 @@ use Drupal\Core\Field\FormatterBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\views\Entity\View;
+use Drupal\views\ViewExecutable;
 use Drupal\views\Views;
 
 /**
@@ -265,21 +266,13 @@ class ViewsFieldFormatter extends FormatterBase {
     ];
 
     $element['implode_character'] = [
-      '#title' => $this->t('Implode with this character'),
+      '#title' => $this->t('Concatenate arguments'),
       '#description' => $this->t(
-        'If it is set, all field values are imploded with this character (<em>ex: a simple comma</em>)
-         and sent as one views argument. Empty to disable.'
+        'If it is set, all arguments will be concatenated with the chosen character (<em>ex: a simple comma</em>)
+         and sent as one argument. Empty to disable.'
       ),
       '#type' => 'textfield',
       '#default_value' => $this->getSetting('implode_character'),
-      '#states' => [
-        'visible' => [
-          ':input[name="fields[' .
-          $this->fieldDefinition->getName() .
-          '][settings_edit_form][settings][multiple]"]' =>
-            ['checked' => TRUE],
-        ],
-      ],
     ];
 
     return $element;
@@ -357,58 +350,6 @@ class ViewsFieldFormatter extends FormatterBase {
   }
 
   /**
-   * Helper function. Returns the arguments to send to the views.
-   *
-   * @param \Drupal\Core\Field\FieldItemListInterface $items
-   *   The items.
-   * @param mixed $item
-   *   The item.
-   * @param mixed $delta
-   *   The item's delta.
-   *
-   * @return array
-   *   The array.
-   */
-  private function getArguments(FieldItemListInterface $items, $item, $delta) {
-    /** @var \Drupal\Core\Entity\EntityInterface $entity */
-    $entity = $items->getParent()->getValue();
-
-    $replacements = [
-      $entity->getEntityTypeId() => $entity,
-      'entity' => $entity,
-      'views_field_formatter' => [
-        'delta' => $delta,
-        'item' => $item,
-        'items' => $items,
-      ]
-    ];
-
-    switch ($this->fieldDefinition->getTargetEntityTypeId()) {
-      case 'taxonomy_term':
-        $replacements['term'] = $entity;
-        $replacements['vocabulary'] = Vocabulary::load($entity->getVocabularyId());
-        break;
-    }
-
-    $token = \Drupal::token();
-
-    return \array_map(
-      function ($argument) use ($token, $replacements) {
-        return $token->replace(
-          $argument['token'],
-          $replacements
-        );
-      },
-      \array_filter(
-        $this->getSetting('arguments'),
-        function ($argument) {
-          return $argument['checked'];
-        }
-      )
-    );
-  }
-
-  /**
    * {@inheritdoc}
    */
   public function viewElements(FieldItemListInterface $items, $langcode) {
@@ -428,19 +369,87 @@ class ViewsFieldFormatter extends FormatterBase {
       return $elements;
     }
 
-    $cardinality = $items
-      ->getFieldDefinition()
-      ->getFieldStorageDefinition()
-      ->getCardinality();
-    $arguments = $this->getArguments($items, NULL, 0);
+    $user_arguments = \array_filter(
+      $this->getSetting('arguments'),
+      function ($argument) {
+        return $argument['checked'];
+      }
+    );
 
-    if ((1 !== $cardinality) && (TRUE === (bool) $settings['multiple'])) {
-      if ('' < $settings['implode_character']) {
-        $arguments = [implode($settings['implode_character'], $arguments)];
+    /** @var \Drupal\Core\Entity\EntityInterface $entity */
+    $entity = $items->getParent()->getValue();
+
+    $token = \Drupal::token();
+
+    $arguments = [];
+    foreach ($user_arguments as $delta_argument => $item_argument)
+    {
+      foreach ($items as $delta_item => $item)
+      {
+        $replacements = [
+          $entity->getEntityTypeId() => $entity,
+          'entity' => $entity,
+          'views_field_formatter' => [
+            'delta' => $delta_item,
+            'item' => $item,
+            'items' => $items,
+          ]
+        ];
+
+        switch ($this->fieldDefinition->getTargetEntityTypeId()) {
+          case 'taxonomy_term':
+            $replacements['term'] = $entity;
+            $replacements['vocabulary'] = Vocabulary::load($entity->getVocabularyId());
+            break;
+        }
+
+        $arguments[$delta_argument][] = $token->replace($item_argument['token'], $replacements);
       }
     }
 
-    // If empty views are hidden, execute view to count result.
+    if (TRUE === (bool) $settings['multiple']) {
+      foreach ($items as $delta => $item) {
+        $viewArray = $this->getViewArray(
+          $view,
+          $view_display,
+          array_column($arguments, $delta),
+          $settings
+        );
+
+        if ([] !== $viewArray) {
+          $elements[$delta] = $viewArray;
+        }
+      }
+    } else {
+      foreach ($arguments as $delta_argument => $item_argument) {
+        $arguments[$delta_argument] = \implode($settings['implode_character'], $arguments[$delta_argument]);
+      }
+
+      $viewArray = $this->getViewArray(
+        $view,
+        $view_display,
+        $arguments,
+        $settings
+      );
+
+      if ([] !== $viewArray) {
+        $elements[0] = $viewArray;
+      }
+    }
+
+    return $elements;
+  }
+
+  /**
+   * @param \Drupal\views\ViewExecutable $view
+   * @param string $view_display
+   * @param array $arguments
+   * @param array $settings
+   *
+   * @return array
+   */
+  private function getViewArray(ViewExecutable $view, $view_display, array $arguments, array $settings): array
+  {
     if (TRUE === (bool) $settings['hide_empty']) {
       $view->setArguments($arguments);
       $view->setDisplay($view_display);
@@ -448,39 +457,21 @@ class ViewsFieldFormatter extends FormatterBase {
       $view->execute();
 
       if (empty($view->result)) {
-        return $elements;
+        return [];
       }
     }
 
-    $elements[0] = [
+    return [
       '#cache' => [
         'max-age' => 0,
       ],
       [
         '#type' => 'view',
-        '#name' => $view_id,
+        '#name' => $view->id(),
         '#display_id' => $view_display,
         '#arguments' => $arguments,
       ],
     ];
-
-    if ((1 !== $cardinality) && (TRUE === (bool) $settings['multiple'])) {
-      foreach ($items as $delta => $item) {
-        $elements[$delta] = [
-          '#cache' => [
-            'max-age' => 0,
-          ],
-          [
-            '#type' => 'view',
-            '#name' => $view_id,
-            '#display_id' => $view_display,
-            '#arguments' => $this->getArguments($items, $item, $delta),
-          ]
-        ];
-      }
-    }
-
-    return $elements;
   }
 
   /**
