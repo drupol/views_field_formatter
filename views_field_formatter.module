@@ -8,7 +8,6 @@
 declare(strict_types = 1);
 
 use Drupal\Core\Routing\RouteMatchInterface;
-use Drupal\Core\Render\BubbleableMetadata;
 use Drupal\field\FieldStorageConfigInterface;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\Component\Utility\Html;
@@ -66,11 +65,11 @@ function views_field_formatter_token_info_alter(array &$info) {
       if (isset($info['types'][$token_type]['module'])) {
         $provider = $info['types'][$token_type]['module'];
       }
-      if (!($field instanceof FieldStorageConfigInterface) && $provider !== 'token') {
+      if (!($field instanceof FieldStorageConfigInterface) && 'token' !== $provider) {
         continue;
       }
 
-      if ($token_type === 'comment' && $field_name === 'comment_body') {
+      if ('comment' === $token_type && 'comment_body' === $field_name) {
         // Core provides the comment field as [comment:body].
         continue;
       }
@@ -82,11 +81,11 @@ function views_field_formatter_token_info_alter(array &$info) {
 
       // Generate a description for the token.
       $labels = _token_field_label($entity_type_id, $field_name);
-      $label = array_shift($labels);
+      $label = \array_shift($labels);
       $params['@type'] = $type_info[$field->getType()]['label'];
 
       $cardinality = $field->getCardinality();
-      $cardinality = ($cardinality === FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED || $cardinality > 3) ? 3 : $cardinality;
+      $cardinality = (FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED === $cardinality || $cardinality > 3) ? 3 : $cardinality;
       $field_token_name = $token_type . '-' . $field_name;
 
       // Show a different token for each field delta.
@@ -123,7 +122,7 @@ function views_field_formatter_token_info_alter(array &$info) {
 /**
  * Implements hook_tokens().
  */
-function views_field_formatter_tokens($type, $tokens, array $data = [], array $options = [], BubbleableMetadata $bubbleable_metadata) {
+function views_field_formatter_tokens($type, $tokens, array $data = [], array $options = []) {
   $replacements = [];
 
   if (!isset($data['views_field_formatter'])) {
@@ -137,32 +136,31 @@ function views_field_formatter_tokens($type, $tokens, array $data = [], array $o
   }
 
   foreach ($tokens as $name => $original) {
-    list($field_name, $delta) = explode(':', $name, 2);
+    list($field_name, $delta) = \explode(':', $name, 2);
 
     // Do not continue if the field is empty.
     if ($data['views_field_formatter']['items']->isEmpty()) {
       continue;
     }
 
-    // Handle [entity:field_name:delta]
-    if ($delta === 'delta') {
+    // Handle [entity:field_name:delta].
+    if ('delta' === $delta) {
       $replacements[$original] = $data['views_field_formatter']['delta'];
     }
 
-    // Handle [entity:field_name:current]
-    if ($delta === 'current') {
+    // Handle [entity:field_name:current].
+    if ('current' === $delta) {
       if ($field_delta = $data['views_field_formatter']['items'][$data['views_field_formatter']['delta']]) {
         $field_output = $field_delta->view();
         $replacements[$original] = \Drupal::service('renderer')->renderPlain($field_output);
       }
     }
 
-    // Handle [entity:field_name:concat:*]
+    // Handle [entity:field_name:concat:*].
     if (0 === \strpos($delta, 'concat:')) {
       list($third_part, $fourth_part) = \explode(':', $delta, 2);
 
-      if ($third_part === 'concat' && $fourth_part !== null)
-      {
+      if ('concat' === $third_part && NULL !== $fourth_part) {
         $field_pieces = [];
         foreach ($data['views_field_formatter']['items'] as $item) {
           $item = $item->view();

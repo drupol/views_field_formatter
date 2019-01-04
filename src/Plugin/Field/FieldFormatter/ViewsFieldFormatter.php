@@ -316,18 +316,18 @@ class ViewsFieldFormatter extends FormatterBase {
     $multiple = (TRUE === (bool) $settings['multiple']) ? 'Enabled' : 'Disabled';
     $hide_empty = (TRUE === (bool) $settings['hide_empty']) ? 'Hide' : 'Display';
 
-    $arguments = \array_filter(
-      $settings['arguments'],
-      function ($argument) {
-        return $argument['checked'];
-      }
-    );
-
     $arguments = \array_map(
       function ($argument) {
         return 'Token';
       },
-      \array_keys($arguments)
+      \array_keys(
+        \array_filter(
+          $settings['arguments'],
+          function ($argument) {
+            return $argument['checked'];
+          }
+        )
+      )
     );
 
     if ([] === $arguments) {
@@ -382,10 +382,8 @@ class ViewsFieldFormatter extends FormatterBase {
     $token = \Drupal::token();
 
     $arguments = [];
-    foreach ($user_arguments as $delta_argument => $item_argument)
-    {
-      foreach ($items as $delta_item => $item)
-      {
+    foreach ($user_arguments as $delta_argument => $item_argument) {
+      foreach ($items as $delta_item => $item) {
         $replacements = [
           $entity->getEntityTypeId() => $entity,
           'entity' => $entity,
@@ -393,13 +391,14 @@ class ViewsFieldFormatter extends FormatterBase {
             'delta' => $delta_item,
             'item' => $item,
             'items' => $items,
-          ]
+          ],
         ];
 
         switch ($this->fieldDefinition->getTargetEntityTypeId()) {
           case 'taxonomy_term':
             $replacements['term'] = $entity;
             $replacements['vocabulary'] = Vocabulary::load($entity->getVocabularyId());
+
             break;
         }
 
@@ -412,7 +411,7 @@ class ViewsFieldFormatter extends FormatterBase {
         $viewArray = $this->getViewArray(
           $view,
           $view_display,
-          array_column($arguments, $delta),
+          \array_column($arguments, $delta),
           $settings
         );
 
@@ -420,7 +419,8 @@ class ViewsFieldFormatter extends FormatterBase {
           $elements[$delta] = $viewArray;
         }
       }
-    } else {
+    }
+    else {
       foreach ($arguments as $delta_argument => $item_argument) {
         $arguments[$delta_argument] = \implode($settings['implode_character'], $arguments[$delta_argument]);
       }
@@ -430,7 +430,7 @@ class ViewsFieldFormatter extends FormatterBase {
         $view_display,
         $arguments,
         $settings
-      );
+          );
 
       if ([] !== $viewArray) {
         $elements[0] = $viewArray;
@@ -441,15 +441,21 @@ class ViewsFieldFormatter extends FormatterBase {
   }
 
   /**
+   * Custom function to generate a view render array.
+   *
    * @param \Drupal\views\ViewExecutable $view
+   *   The view.
    * @param string $view_display
+   *   The view display.
    * @param array $arguments
+   *   The arguments to pass to the view.
    * @param array $settings
+   *   The field formatter settings.
    *
    * @return array
+   *   A render array.
    */
-  private function getViewArray(ViewExecutable $view, $view_display, array $arguments, array $settings): array
-  {
+  private function getViewArray(ViewExecutable $view, $view_display, array $arguments, array $settings): array {
     if (TRUE === (bool) $settings['hide_empty']) {
       $view->setArguments($arguments);
       $view->setDisplay($view_display);
