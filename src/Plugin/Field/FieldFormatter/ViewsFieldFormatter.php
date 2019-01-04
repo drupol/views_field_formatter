@@ -369,20 +369,24 @@ class ViewsFieldFormatter extends FormatterBase {
    * @return array
    *   The array.
    */
-  private function getArguments(FieldItemListInterface $items) {
+  private function getArguments(FieldItemListInterface $items, $item, $delta) {
     /** @var \Drupal\Core\Entity\EntityInterface $entity */
     $entity = $items->getParent()->getValue();
+
+    $replacements = [
+      $entity->getEntityTypeId() => $entity,
+      'entity' => $entity,
+      'views_field_formatter' => [
+        'delta' => $delta,
+        'item' => $item,
+        'items' => $items,
+      ]
+    ];
 
     switch ($this->fieldDefinition->getTargetEntityTypeId()) {
       case 'taxonomy_term':
         $replacements['term'] = $entity;
         $replacements['vocabulary'] = Vocabulary::load($entity->getVocabularyId());
-
-        break;
-
-      default:
-        $replacements[$entity->getEntityTypeId()] = $entity;
-
         break;
     }
 
@@ -418,24 +422,27 @@ class ViewsFieldFormatter extends FormatterBase {
       return $elements;
     }
 
-    $cardinality = $items->getFieldDefinition()->getFieldStorageDefinition()->getCardinality();
-    $arguments = $this->getArguments($items);
+    // First check the availability of the view.
+    $view = Views::getView($view_id);
+    if (!$view || !$view->access($view_display)) {
+      return $elements;
+    }
+
+    $cardinality = $items
+      ->getFieldDefinition()
+      ->getFieldStorageDefinition()
+      ->getCardinality();
+    $arguments = $this->getArguments($items, NULL, 0);
+
+    if ((1 !== $cardinality) && (TRUE === (bool) $settings['multiple'])) {
+      if ('' < $settings['implode_character']) {
+        $arguments = [implode($settings['implode_character'], $arguments)];
+      }
+    }
 
     // If empty views are hidden, execute view to count result.
-    if (!empty($settings['hide_empty'])) {
-      $view = Views::getView($view_id);
-
-      if (!$view || !$view->access($view_display)) {
-        return $elements;
-      }
-
+    if (TRUE === (bool) $settings['hide_empty']) {
       $view->setArguments($arguments);
-      if ((1 !== $cardinality) && (TRUE === (bool) $settings['multiple'])) {
-        if (!empty($settings['implode_character'])) {
-          $view->setArguments((array) implode($settings['implode_character'], $arguments));
-        }
-      }
-
       $view->setDisplay($view_display);
       $view->preExecute();
       $view->execute();
@@ -445,7 +452,7 @@ class ViewsFieldFormatter extends FormatterBase {
       }
     }
 
-    $elements = [
+    $elements[0] = [
       '#cache' => [
         'max-age' => 0,
       ],
@@ -458,10 +465,6 @@ class ViewsFieldFormatter extends FormatterBase {
     ];
 
     if ((1 !== $cardinality) && (TRUE === (bool) $settings['multiple'])) {
-      if (!empty($settings['implode_character'])) {
-        $arguments = (array) implode($settings['implode_character'], $arguments);
-      }
-
       foreach ($items as $delta => $item) {
         $elements[$delta] = [
           '#cache' => [
@@ -471,7 +474,7 @@ class ViewsFieldFormatter extends FormatterBase {
             '#type' => 'view',
             '#name' => $view_id,
             '#display_id' => $view_display,
-            '#arguments' => $arguments,
+            '#arguments' => $this->getArguments($items, $item, $delta),
           ]
         ];
       }
