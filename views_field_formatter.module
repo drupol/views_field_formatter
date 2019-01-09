@@ -137,10 +137,20 @@ function views_field_formatter_tokens($type, $tokens, array $data = [], array $o
   }
 
   foreach ($tokens as $name => $original) {
-    list($field_name, $delta) = \explode(':', $name, 2);
+    // Do not continue if the $name doesn't contains a semicolon.
+    if (FALSE === \strpos(':', $name)) {
+      continue;
+    }
 
     // Do not continue if the field is empty.
     if ($data['views_field_formatter']['items']->isEmpty()) {
+      continue;
+    }
+
+    list(, $delta) = \explode(':', $name, 2);
+
+    // Do not continue if $delta is null.
+    if (null === $delta) {
       continue;
     }
 
