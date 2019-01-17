@@ -70,3 +70,4 @@ parameters:
         trailing_comma_in_multiline_array: true
         yoda_style:
           always_move_variable: true
+    behat: ~
