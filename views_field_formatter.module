@@ -150,7 +150,7 @@ function views_field_formatter_tokens($type, $tokens, array $data = [], array $o
     list(, $delta) = \explode(':', $name, 2);
 
     // Do not continue if $delta is null.
-    if (null === $delta) {
+    if (NULL === $delta) {
       continue;
     }
 
