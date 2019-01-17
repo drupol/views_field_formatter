@@ -3,7 +3,6 @@ Feature: Setup
   A user needs to be able to configure the VFF properly.
 
   Scenario:
-    When I enable the module "views_field_formatter"
     And I set the "views_field_formatter" formatter to the field "body" of the "page" bundle of "node" entity
 
   Scenario:
