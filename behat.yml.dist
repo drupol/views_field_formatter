@@ -6,6 +6,8 @@ default:
       contexts:
         - Drupal\DrupalExtension\Context\MinkContext
         - Drupal\DrupalExtension\Context\DrupalContext
+        - Drupal\Tests\views_field_formatter\Behat\DrupalContext
+        - Drupal\Tests\views_field_formatter\Behat\FieldFormatterContext
   extensions:
     Drupal\MinkExtension:
       goutte: ~

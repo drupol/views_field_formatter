@@ -23,7 +23,7 @@ drupal:
       - ./vendor/bin/drush config-set system.theme default bartik -y
       - ./vendor/bin/drush config-set system.theme admin seven -y
       - ./vendor/bin/drush config-set node.settings use_admin_theme 1 -y
-      - ./vendor/bin/drush en admin_toolbar admin_toolbar_tools config_devel config_split token views_field_formatter_test -y
+      - ./vendor/bin/drush en admin_toolbar admin_toolbar_tools config_devel config_split token -y
       - ./vendor/bin/drush cr
       - ./vendor/bin/drush uli
   drush:
@@ -42,7 +42,6 @@ commands:
     - { task: "mkdir", dir: "${drupal.root}/profiles" }
     - { task: "mkdir", dir: "${drupal.root}/themes" }
     - { task: "symlink", from: "../../..", to: "${drupal.root}/modules/custom/views_field_formatter" }
-    - { task: "symlink", from: "../../../tests/modules/views_field_formatter_test", to: "${drupal.root}/modules/custom/views_field_formatter_test" }
     - { task: "run", command: "drupal:drush-setup" }
     - { task: "run", command: "drupal:settings-setup" }
     - { task: "run", command: "setup:phpunit" }
