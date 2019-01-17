@@ -95,7 +95,7 @@ class ViewsFieldFormatter extends FormatterBase {
     }
 
     $default_arguments = \array_filter(
-      $this->getSetting('arguments'),
+      (array) $this->getSetting('arguments'),
       function ($argument) {
         return $argument['checked'];
       }
@@ -322,7 +322,7 @@ class ViewsFieldFormatter extends FormatterBase {
       },
       \array_keys(
         \array_filter(
-          $settings['arguments'],
+          (array) $settings['arguments'],
           function ($argument) {
             return $argument['checked'];
           }
@@ -370,7 +370,7 @@ class ViewsFieldFormatter extends FormatterBase {
     }
 
     $user_arguments = \array_filter(
-      $this->getSetting('arguments'),
+      (array) $this->getSetting('arguments'),
       function ($argument) {
         return $argument['checked'];
       }
