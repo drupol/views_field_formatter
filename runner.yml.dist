@@ -42,7 +42,6 @@ commands:
     - { task: "mkdir", dir: "${drupal.root}/profiles" }
     - { task: "mkdir", dir: "${drupal.root}/themes" }
     - { task: "symlink", from: "../../..", to: "${drupal.root}/modules/custom/views_field_formatter" }
-    - { task: "symlink", from: "../../../tests/modules", to: "${drupal.root}/modules/custom/views_field_formatter_test" }
     - { task: "run", command: "drupal:drush-setup" }
     - { task: "run", command: "drupal:settings-setup" }
     - { task: "run", command: "setup:phpunit" }
