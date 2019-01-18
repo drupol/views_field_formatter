@@ -138,7 +138,7 @@ function views_field_formatter_tokens($type, $tokens, array $data = [], array $o
 
   foreach ($tokens as $name => $original) {
     // Do not continue if the $name doesn't contains a semicolon.
-    if (FALSE === \strpos(':', $name)) {
+    if (FALSE === \strpos($name, ':')) {
       continue;
     }
 

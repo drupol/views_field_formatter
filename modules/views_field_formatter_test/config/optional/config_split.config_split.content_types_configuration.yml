@@ -3,11 +3,11 @@ langcode: en
 status: true
 dependencies: {  }
 _core:
-  default_config_hash: Mtn-KNUU4A5JGFykAyfUR_DRAk6BnBJXEFynxOhqOPI
+  default_config_hash: sq1GV03UxLgEJ864dgjL5CaIAlhDmxY2a9352OsOLTw
 id: content_types_configuration
 label: 'Content types configuration'
 description: ''
-folder: modules/custom/views_field_formatter_test/views_field_formatter_test/config/optional
+folder: modules/custom/views_field_formatter/modules/views_field_formatter_test/config/optional
 module:
   config_split: 0
   views: 10

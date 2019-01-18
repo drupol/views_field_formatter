@@ -75,7 +75,9 @@ class ViewsFieldFormatter extends FormatterBase {
    */
   public function settingsForm(array $form, FormStateInterface $form_state) {
     $element = parent::settingsForm($form, $form_state);
+    $settings = $this->getSettings();
 
+    // Get all views select options.
     $options = [];
     foreach (Views::getAllViews() as $view) {
       foreach ($view->get('display') as $display) {
@@ -86,6 +88,7 @@ class ViewsFieldFormatter extends FormatterBase {
       }
     }
 
+    // Early return if there is no views.
     if ([] === $options) {
       $element['help'] = [
         '#markup' => '<p>' . $this->t('No available Views were found.') . '</p>',
@@ -94,26 +97,29 @@ class ViewsFieldFormatter extends FormatterBase {
       return $element;
     }
 
-    $default_arguments = \array_filter(
-      (array) $this->getSetting('arguments'),
+    $checked_arguments = \array_filter(
+      (array) $settings['arguments'],
       function ($argument) {
         return $argument['checked'];
       }
     );
 
-    if (NULL === $form_state->get('arguments')) {
-      $form_state->set('arguments', \count($default_arguments));
+    // Make sure we only save arguments that are enabled.
+    $settings['arguments'] = \array_values($checked_arguments);
+    $this->setSettings($settings);
+
+    $ajax_arguments_count = 'ajax_arguments_count_' . $this->fieldDefinition->getName();
+
+    if (NULL === $form_state->get($ajax_arguments_count)) {
+      $form_state->set($ajax_arguments_count, \count($checked_arguments));
     }
 
     // Ensure we clicked the Ajax button.
+    // @todo Is there a better way to detect this ?
     $trigger = $form_state->getTriggeringElement();
     if (\is_array($trigger['#array_parents']) && 'addRow' === \end($trigger['#array_parents'])) {
-      $form_state->set('arguments', $form_state->get('arguments') + 1);
+      $form_state->set($ajax_arguments_count, $form_state->get($ajax_arguments_count) + 1);
     }
-
-    $settings = $this->getSettings();
-    $settings['arguments'] = \array_values($default_arguments);
-    $this->setSettings($settings);
 
     $element['view'] = [
       '#title' => $this->t('View'),
@@ -147,7 +153,7 @@ class ViewsFieldFormatter extends FormatterBase {
       ),
     ];
 
-    for ($i = 0; $i < $form_state->get('arguments'); $i++) {
+    for ($i = 0; $i < $form_state->get($ajax_arguments_count); $i++) {
       $element['arguments'][] = [
         'checked' => [
           '#type' => 'checkbox',
@@ -292,8 +298,6 @@ class ViewsFieldFormatter extends FormatterBase {
   public function ajaxAddRow(array &$form, FormStateInterface $form_state): array {
     /** @var \Drupal\field\FieldConfigInterface $fieldConfig */
     $fieldConfig = $this->fieldDefinition;
-
-    $form_state->setRebuild(TRUE);
 
     return $form['fields'][$fieldConfig->getName()]['plugin']['settings_edit_form']['settings']['arguments'];
   }

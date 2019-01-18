@@ -9,6 +9,11 @@ default:
         - Drupal\Tests\views_field_formatter\Behat\DrupalContext
         - Drupal\Tests\views_field_formatter\Behat\FieldFormatterContext
   extensions:
+    Bex\Behat\ScreenshotExtension:
+      image_drivers:
+        local:
+          screenshot_directory: ../build/screenshots
+          clear_screenshot_directory: true
     Drupal\MinkExtension:
       goutte: ~
       browser_name: "${selenium.browser}"
