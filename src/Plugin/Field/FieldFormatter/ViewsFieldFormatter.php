@@ -468,15 +468,10 @@ class ViewsFieldFormatter extends FormatterBase {
     }
 
     return [
-      '#cache' => [
-        'max-age' => 0,
-      ],
-      [
-        '#type' => 'view',
-        '#name' => $view->id(),
-        '#display_id' => $view_display,
-        '#arguments' => $arguments,
-      ],
+      '#type' => 'view',
+      '#name' => $view->id(),
+      '#display_id' => $view_display,
+      '#arguments' => $arguments,
     ];
   }
 
