@@ -2,22 +2,21 @@
 Feature: Setup
   A user needs to be able to configure the VFF properly.
 
-  Scenario:
-    Given I set the "views_field_formatter" formatter to the field "body" of the "page" bundle of "node" entity
-
-  Scenario:
-    When I am logged in as a user with the "administrator" role
-    And I am on "/admin/structure/types/manage/page/display"
-    Then I should see the text "Not configured yet."
-
-  Scenario:
+  Background:
     Given "page" content:
       | title        | body        |
       | Node 1 title | Node 1 body |
       | Node 2 title | Node 2 body |
       | Node 3 title | Node 3 body |
-    When I am logged in as a user with the "administrator" role
-    And I set the "views_field_formatter" formatter to the field "body" of the "page" bundle of "node" entity
+    Given I am logged in as a user with the "administrator" role
+    Given I set the "views_field_formatter" formatter to the field "body" of the "page" bundle of "node" entity
+
+  Scenario:
+    When I am on "/admin/structure/types/manage/page/display"
+    Then I should see the text "Not configured yet."
+
+  Scenario:
+    When I set the "views_field_formatter" formatter to the field "body" of the "page" bundle of "node" entity
     And I am on "/admin/structure/types/manage/page/display"
     And I press "body_settings_edit"
     And I select "vff_single_test_view::embed_1" from "View"
@@ -39,13 +38,7 @@ Feature: Setup
     Then I should see the text "**Node 3 title**"
 
   Scenario:
-    Given "page" content:
-      | title        | body        |
-      | Node 1 title | Node 1 body |
-      | Node 2 title | Node 2 body |
-      | Node 3 title | Node 3 body |
-    When I am logged in as a user with the "administrator" role
-    And I set the "views_field_formatter" formatter to the field "body" of the "page" bundle of "node" entity
+    When I set the "views_field_formatter" formatter to the field "body" of the "page" bundle of "node" entity
     And I am on "/admin/structure/types/manage/page/display"
     And I press "body_settings_edit"
     And I select "vff_single_test_view::embed_1" from "View"
@@ -72,13 +65,7 @@ Feature: Setup
     Then I should see the text "**Node 3 title**"
 
   Scenario:
-    Given "page" content:
-      | title        | body        |
-      | Node 1 title | Node 1 body |
-      | Node 2 title | Node 2 body |
-      | Node 3 title | Node 3 body |
-    When I am logged in as a user with the "administrator" role
-    And I set the "views_field_formatter" formatter to the field "body" of the "page" bundle of "node" entity
+    When I set the "views_field_formatter" formatter to the field "body" of the "page" bundle of "node" entity
     And I am on "/admin/structure/types/manage/page/display"
     And I press "body_settings_edit"
     And I select "vff_single_test_view::embed_2" from "View"
