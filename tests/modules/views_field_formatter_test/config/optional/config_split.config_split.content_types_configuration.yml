@@ -7,7 +7,7 @@ _core:
 id: content_types_configuration
 label: 'Content types configuration'
 description: ''
-folder: modules/custom/views_field_formatter_test/config/install
+folder: modules/custom/views_field_formatter_test/views_field_formatter_test/config/optional
 module:
   config_split: 0
   views: 10
