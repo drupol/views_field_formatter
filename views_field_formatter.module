@@ -17,19 +17,16 @@ use Drupal\Core\Entity\ContentEntityInterface;
  * Implements hook_help().
  */
 function views_field_formatter_help($route_name, RouteMatchInterface $route_match) {
-  switch ($route_name) {
-    case 'help.page.views_field_formatter':
-      $output = '';
-      $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t("Provide a new field formatter: '<strong>View</strong>' for each field types and allows you to select a View and to use its result instead of the original field value.") . '</p>';
-      $output .= '<h3>' . t('More Information') . '</h3>';
-      $output .= '<p>' . t('for more information about this module please visit the <a href="@link">project page</a>', ['@link' => 'https://www.drupal.org/project/views_field_formatter']) . '</p>';
+  $help = '';
 
-      return $output;
-
-    default:
-      return '';
+  if ($route_name === 'help.page.views_field_formatter') {
+    $help .= '<h3>' . t('About') . '</h3>';
+    $help .= '<p>' . t("Provide a new field formatter: '<strong>View</strong>' for each field types and allows you to select a View and to use its result instead of the original field value.") . '</p>';
+    $help .= '<h3>' . t('More Information') . '</h3>';
+    $help .= '<p>' . t('for more information about this module please visit the <a href="@link">project page</a>', ['@link' => 'https://www.drupal.org/project/views_field_formatter']) . '</p>';
   }
+
+  return $help;
 }
 
 /**
@@ -67,11 +64,11 @@ function views_field_formatter_token_info_alter(array &$info) {
       if (isset($info['types'][$token_type]['module'])) {
         $provider = $info['types'][$token_type]['module'];
       }
-      if (!($field instanceof FieldStorageConfigInterface) && 'token' !== $provider) {
+      if (!($field instanceof FieldStorageConfigInterface) && $provider !== 'token') {
         continue;
       }
 
-      if ('comment' === $token_type && 'comment_body' === $field_name) {
+      if ($token_type === 'comment' && $field_name === 'comment_body') {
         // Core provides the comment field as [comment:body].
         continue;
       }
@@ -90,7 +87,7 @@ function views_field_formatter_token_info_alter(array &$info) {
 
       $field_token_name = $token_type . '-' . $field_name;
 
-      if (FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED === $cardinality || $cardinality > 1) {
+      if ($cardinality === FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED || $cardinality > 1) {
         $info['tokens']["list<$field_token_name>"]['delta'] = [
           'name' => t(
             '@type type current delta',
@@ -138,7 +135,7 @@ function views_field_formatter_tokens($type, $tokens, array $data = [], array $o
 
   foreach ($tokens as $name => $original) {
     // Do not continue if the $name doesn't contains a semicolon.
-    if (FALSE === \strpos($name, ':')) {
+    if (\strpos($name, ':') === FALSE) {
       continue;
     }
 
@@ -150,17 +147,17 @@ function views_field_formatter_tokens($type, $tokens, array $data = [], array $o
     list(, $delta) = \explode(':', $name, 2);
 
     // Do not continue if $delta is null.
-    if (NULL === $delta) {
+    if ($delta === NULL) {
       continue;
     }
 
     // Handle [entity:field_name:delta].
-    if ('delta' === $delta) {
+    if ($delta === 'delta') {
       $replacements[$original] = $data['views_field_formatter']['delta'];
     }
 
     // Handle [entity:field_name:current].
-    if ('current' === $delta) {
+    if ($delta === 'current') {
       if ($field_delta = $data['views_field_formatter']['items'][$data['views_field_formatter']['delta']]) {
         $field_output = $field_delta->view();
         $replacements[$original] = \Drupal::service('renderer')->renderPlain($field_output);
@@ -168,10 +165,10 @@ function views_field_formatter_tokens($type, $tokens, array $data = [], array $o
     }
 
     // Handle [entity:field_name:concat:*].
-    if (0 === \strpos($delta, 'concat:')) {
+    if (\strpos($delta, 'concat:') === 0) {
       list($third_part, $fourth_part) = \explode(':', $delta, 2);
 
-      if ('concat' === $third_part && NULL !== $fourth_part) {
+      if ($third_part === 'concat' && $fourth_part !== NULL) {
         $field_pieces = [];
         foreach ($data['views_field_formatter']['items'] as $item) {
           $item = $item->view();

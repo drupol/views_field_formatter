@@ -58,6 +58,41 @@ use Drupal\views\Views;
 class ViewsFieldFormatter extends FormatterBase {
 
   /**
+   * Custom ajax callback.
+   *
+   * @param array $form
+   *   The form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   *
+   * @return array
+   *   The form element.
+   */
+  public function ajaxAddRow(array &$form, FormStateInterface $form_state): array {
+    /** @var \Drupal\field\FieldConfigInterface $fieldConfig */
+    $fieldConfig = $this->fieldDefinition;
+
+    return $form['fields'][$fieldConfig->getName()]['plugin']['settings_edit_form']['settings']['arguments'];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function calculateDependencies() {
+    $dependencies = parent::calculateDependencies();
+
+    list($view_id) = \explode('::', $this->getSetting('view'), 2);
+    // Don't call the current view, as it would result into an
+    // infinite recursion.
+    // TODO: Check for infinite loop here.
+    if ($view_id !== NULL && $view = View::load($view_id)) {
+      $dependencies[$view->getConfigDependencyKey()][] = $view->getConfigDependencyName();
+    }
+
+    return $dependencies;
+  }
+
+  /**
    * {@inheritdoc}
    */
   public static function defaultSettings() {
@@ -110,14 +145,14 @@ class ViewsFieldFormatter extends FormatterBase {
 
     $ajax_arguments_count = 'ajax_arguments_count_' . $this->fieldDefinition->getName();
 
-    if (NULL === $form_state->get($ajax_arguments_count)) {
+    if ($form_state->get($ajax_arguments_count) === NULL) {
       $form_state->set($ajax_arguments_count, \count($checked_arguments));
     }
 
     // Ensure we clicked the Ajax button.
     // @todo Is there a better way to detect this ?
     $trigger = $form_state->getTriggeringElement();
-    if (\is_array($trigger['#array_parents']) && 'addRow' === \end($trigger['#array_parents'])) {
+    if (\is_array($trigger['#array_parents']) && \end($trigger['#array_parents']) === 'addRow') {
       $form_state->set($ajax_arguments_count, $form_state->get($ajax_arguments_count) + 1);
     }
 
@@ -285,24 +320,6 @@ class ViewsFieldFormatter extends FormatterBase {
   }
 
   /**
-   * Custom ajax callback.
-   *
-   * @param array $form
-   *   The form.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   The form state.
-   *
-   * @return array
-   *   The form element.
-   */
-  public function ajaxAddRow(array &$form, FormStateInterface $form_state): array {
-    /** @var \Drupal\field\FieldConfigInterface $fieldConfig */
-    $fieldConfig = $this->fieldDefinition;
-
-    return $form['fields'][$fieldConfig->getName()]['plugin']['settings_edit_form']['settings']['arguments'];
-  }
-
-  /**
    * {@inheritdoc}
    */
   public function settingsSummary() {
@@ -310,15 +327,15 @@ class ViewsFieldFormatter extends FormatterBase {
     $settings = $this->getSettings();
 
     // For default settings, don't show a summary.
-    if ('' === $settings['view']) {
+    if ($settings['view'] === '') {
       return [
         $this->t('Not configured yet.'),
       ];
     }
 
     list($view, $view_display) = \explode('::', $settings['view'], 2);
-    $multiple = (TRUE === (bool) $settings['multiple']) ? 'Enabled' : 'Disabled';
-    $hide_empty = (TRUE === (bool) $settings['hide_empty']) ? 'Hide' : 'Display';
+    $multiple = ((bool) $settings['multiple'] === TRUE) ? 'Enabled' : 'Disabled';
+    $hide_empty = ((bool) $settings['hide_empty'] === TRUE) ? 'Hide' : 'Display';
 
     $arguments = \array_map(
       function ($argument) {
@@ -338,7 +355,7 @@ class ViewsFieldFormatter extends FormatterBase {
       $arguments[] = $this->t('None');
     }
 
-    if (NULL !== $view) {
+    if ($view !== NULL) {
       $summary[] = t('View: @view', ['@view' => $view]);
       $summary[] = t('Display: @display', ['@display' => $view_display]);
       $summary[] = t('Argument(s): @arguments', ['@arguments' => \implode(', ', $arguments)]);
@@ -346,7 +363,7 @@ class ViewsFieldFormatter extends FormatterBase {
       $summary[] = t('Multiple: @multiple', ['@multiple' => $multiple]);
     }
 
-    if ((TRUE === (bool) $settings['multiple']) && ('' !== $settings['implode_character'])) {
+    if (((bool) $settings['multiple'] === TRUE) && ($settings['implode_character'] !== '')) {
       $summary[] = t('Implode character: @character', ['@character' => $settings['implode_character']]);
     }
 
@@ -360,7 +377,7 @@ class ViewsFieldFormatter extends FormatterBase {
     $elements = [];
     $settings = $this->getSettings();
 
-    if (isset($settings['view']) && !empty($settings['view']) && FALSE !== \strpos($settings['view'], '::')) {
+    if (isset($settings['view']) && !empty($settings['view']) && \strpos($settings['view'], '::') !== FALSE) {
       list($view_id, $view_display) = \explode('::', $settings['view'], 2);
     }
     else {
@@ -410,7 +427,7 @@ class ViewsFieldFormatter extends FormatterBase {
       }
     }
 
-    if (TRUE === (bool) $settings['multiple']) {
+    if ((bool) $settings['multiple'] === TRUE) {
       foreach ($items as $delta => $item) {
         $viewArray = $this->getViewArray(
           $view,
@@ -460,7 +477,7 @@ class ViewsFieldFormatter extends FormatterBase {
    *   A render array.
    */
   private function getViewArray(ViewExecutable $view, $view_display, array $arguments, array $settings): array {
-    if (TRUE === (bool) $settings['hide_empty']) {
+    if ((bool) $settings['hide_empty'] === TRUE) {
       $view->setArguments($arguments);
       $view->setDisplay($view_display);
       $view->preExecute();
@@ -477,23 +494,6 @@ class ViewsFieldFormatter extends FormatterBase {
       '#display_id' => $view_display,
       '#arguments' => $arguments,
     ];
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function calculateDependencies() {
-    $dependencies = parent::calculateDependencies();
-
-    list($view_id) = \explode('::', $this->getSetting('view'), 2);
-    // Don't call the current view, as it would result into an
-    // infinite recursion.
-    // TODO: Check for infinite loop here.
-    if (NULL !== $view_id && $view = View::load($view_id)) {
-      $dependencies[$view->getConfigDependencyKey()][] = $view->getConfigDependencyName();
-    }
-
-    return $dependencies;
   }
 
 }
