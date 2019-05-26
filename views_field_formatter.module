@@ -127,7 +127,7 @@ function views_field_formatter_tokens($type, $tokens, array $data = [], array $o
     return [];
   }
 
-  /* @var \Drupal\Core\Entity\ContentEntityInterface $entity */
+  // @var \Drupal\Core\Entity\ContentEntityInterface $entity
   $entity = $data['entity'];
   if (!($entity instanceof ContentEntityInterface)) {
     return $replacements;
