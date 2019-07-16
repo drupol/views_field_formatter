@@ -207,7 +207,7 @@ class ViewsFieldFormatter extends FormatterBase {
         'token' => [
           '#type' => 'textfield',
           '#title' => 'Argument',
-          '#description' => $this->t('Use a static string or a Drupal token.'),
+          '#description' => $this->t('Use a static string or a Drupal token - You can temporary use <em>%value%</em> until a proper token is found.'),
           '#default_value' => $this->getSettings()['arguments'][$i]['token'],
         ],
         '#attributes' => ['class' => ['draggable']],
@@ -405,6 +405,20 @@ class ViewsFieldFormatter extends FormatterBase {
     $arguments = [];
     foreach ($user_arguments as $delta_argument => $item_argument) {
       foreach ($items as $delta_item => $item) {
+        // This is temporary until we find a solution to get that same value
+        // using a tokens.
+        if ($item_argument['token'] === '%value%') {
+          $columns = array_keys(
+            $items->getFieldDefinition()->getFieldStorageDefinition()->getSchema()['columns']
+          );
+          $column = array_shift($columns);
+
+          $arguments[$delta_argument][] = !empty($column) && isset($item->getValue()[$column]) ?
+            $item->getValue()[$column] : NULL;
+
+          continue;
+        }
+
         $replacements = [
           $entity->getEntityTypeId() => $entity,
           'entity' => $entity,
